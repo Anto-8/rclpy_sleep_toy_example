@@ -5,14 +5,15 @@ import rclpy
 import asyncio
 from std_msgs.msg import String
 from rclpy.executors import MultiThreadedExecutor
-from rclpy_sleep_toy_example.testing_node import AsyncSleepTestNode, SyncExclusiveSleepTestNode, SyncReentrantSleepTestNode
+from rclpy_sleep_toy_example.testing_node import *
 
 
 
 def main(args=None):
     rclpy.init(args=args)
     # node = SyncExclusiveSleepTestNode(group_mode="same")
-    node = SyncReentrantSleepTestNode()
+    # node = SyncReentrantSleepTestNode()
+    node = FloodedReentrantSleepTestNode()
 
     executor = MultiThreadedExecutor()
     executor.add_node(node)

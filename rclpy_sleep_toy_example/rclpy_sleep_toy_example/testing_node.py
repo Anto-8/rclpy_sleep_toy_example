@@ -3,9 +3,47 @@
 import time
 import rclpy
 import asyncio
+import threading
 from rclpy.node import Node
 from std_msgs.msg import String
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
+
+
+class FloodedReentrantSleepTestNode(Node):
+    def __init__(self):
+        super().__init__("flooded_sleep_test_node")
+        
+        self.group = ReentrantCallbackGroup()
+        
+        self.active_calls = 0
+        self.lock = threading.Lock()
+
+        for i in range(100):
+            cb_lambda = lambda idx=i: self.callback(idx)
+            self.create_timer(1.0, cb_lambda, callback_group=self.group)
+
+        self.get_logger().info("Sleep node started. Watch the logs to see parallel execution!")
+
+
+    def callback(self, idx):
+        with self.lock:
+            self.active_calls += 1
+            current_active = self.active_calls
+        
+        self.get_logger().info(f"TICK ON CALLBACK {idx}")
+        # self.get_logger().warn(f"Starting sleep on callback {idx}")
+        time.sleep(10.0)
+        self.get_logger().warn(f"Ending sleep on callback {idx}")
+        
+        with self.lock:
+            self.active_calls -= 1
+
+        self.get_logger().info(f"Active Threads: {current_active}")
+
+
+    def run(self):
+        self.get_logger().info("Executor is now spinning...")
+
 
 
 
@@ -48,7 +86,7 @@ class SyncExclusiveSleepTestNode(Node):
 
 class SyncReentrantSleepTestNode(Node):
     def __init__(self):
-        super().__init__("synch_exclusive_sleep_test_node")
+        super().__init__("synch_reentrant_sleep_test_node")
 
         self.regular_callback_group = ReentrantCallbackGroup()
 
