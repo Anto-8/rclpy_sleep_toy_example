@@ -116,37 +116,26 @@ class SyncReentrantSleepTestNode(Node):
 
 
 
-class AsyncSleepTestNode(Node):
-    def __init__(self):
-        super().__init__("sleep_test_node")
-        self.regular_timer = self.create_timer(1.0, self.regular_callback)
-        self.regular_count = 0
+class AsyncFloodedNode(Node):
+    def __init__(self, loop):
+        super().__init__("async_flooded_node")
+        # Store the loop main 
+        self._loop = loop 
+        self.group = MutuallyExclusiveCallbackGroup()
 
-        self.async_timer = self.create_timer(3.0, self.async_callback)
-        self.async_count = 0
+        self.create_timer(5.0, lambda: self.timer_wrapper("LONGER  ", 5.0), callback_group=self.group)
+        self.create_timer(2.0, lambda: self.timer_wrapper("MID     ", 1.0), callback_group=self.group)
+        self.create_timer(1.0, lambda: self.timer_wrapper("HI-FREQ ", 0.1), callback_group=self.group)
 
-        self.get_logger().info("Sleep node started...")
+        self.get_logger().info("Async Node Initialized. Loop captured.")
 
-    def regular_callback(self):
-        self.regular_count += 1
-        self.get_logger().info(f'| REGULAR | Count: {self.regular_count:2d} | Time: {time.time():.2f} |')
-    
-    async def async_callback(self):
-        self.async_count += 1
-        start_time = time.time()
-
-        self.get_logger().warn(f'|ASYNC| Starting sleep| Count: {self.async_count:2d}, Time: {start_time:.2f} |'
+    def timer_wrapper(self, name, duration):
+        # schedule the coroutine on the main thread's loop
+        self._loop.call_soon_threadsafe(
+            lambda: asyncio.create_task(self.async_callback(name, duration))
         )
 
-        await asyncio.sleep(2.0)
-
-        end_time = time.time()
-        self.get_logger().warn(f'|ASYNC| Finished sleep| Duration: {end_time - start_time:.2f}s')
-
-
-
-    def callback_2(self):
-        pass
-
-    def run(self):
-        self.get_logger().info("Sleep node running...")
+    async def async_callback(self, name, sleep_duration):
+        self.get_logger().info(f"[{name}] Starting sleep ({sleep_duration}s)")
+        await asyncio.sleep(sleep_duration)
+        self.get_logger().warn(f"[{name}] Woke up!")
